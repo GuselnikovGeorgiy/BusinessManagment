@@ -2,10 +2,12 @@ from enum import Enum
 from sqlalchemy import ForeignKey, Table, Column
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from app.models.base import Base
-from app.models.users import User
+
+if TYPE_CHECKING:
+    from app.models.users import User
 
 
 class TaskStatus(str, Enum):

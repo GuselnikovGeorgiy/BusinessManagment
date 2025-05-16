@@ -1,10 +1,14 @@
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_utils.types.ltree import LtreeType
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from app.models.base import Base
 
+if TYPE_CHECKING:
+    from app.models.users import User
+    from app.models.roles import RoleAssignment
+    from app.models.companies import Company
 
 
 class Department(Base):

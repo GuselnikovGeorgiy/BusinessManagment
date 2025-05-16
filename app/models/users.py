@@ -1,13 +1,15 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
-from app.models.companies import Company
-from app.models.departments import Department
-from app.models.positions import Position
-from app.models.roles import RoleAssignment
-from app.models.tasks import Task
+
+if TYPE_CHECKING:
+    from app.models.companies import Company
+    from app.models.departments import Department
+    from app.models.positions import Position
+    from app.models.roles import RoleAssignment
+    from app.models.tasks import Task
 
 
 class User(Base):
@@ -22,7 +24,7 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(default=False)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
     company: Mapped["Company"] = relationship("Company", back_populates="employees")
-    position_id: Mapped[int] = mapped_column(ForeignKey("position.id"), nullable=True)
+    position_id: Mapped[int] = mapped_column(ForeignKey("positions.id"), nullable=True)
     position: Mapped["Position"] = relationship("Position", back_populates="users")
     department_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("departments.id"), nullable=True

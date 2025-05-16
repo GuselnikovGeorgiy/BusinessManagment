@@ -1,9 +1,12 @@
+from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
-from app.models.departments import Department
-from app.models.users import User
+
+if TYPE_CHECKING:
+    from app.models.departments import Department
+    from app.models.users import User
 
 
 class RoleAssignment(Base):
