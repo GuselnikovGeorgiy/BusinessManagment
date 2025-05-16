@@ -1,0 +1,22 @@
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models.base import Base
+from app.models.departments import Department
+from app.models.users import User
+
+
+class RoleAssignment(Base):
+    __tablename__ = "role_assignments"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    department_id: Mapped[int] = mapped_column(
+        ForeignKey("departments.id"), nullable=False
+    )
+    role_name: Mapped[str] = mapped_column(nullable=False)
+
+    user: Mapped["User"] = relationship("User", back_populates="role_assignments")
+    department: Mapped["Department"] = relationship(
+        "Department", back_populates="role_assignments"
+    )
