@@ -4,7 +4,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 
 
-class Invite(Base):
+class InviteModel(Base):
     __tablename__ = "invites"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
