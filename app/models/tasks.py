@@ -7,7 +7,7 @@ from typing import Optional, TYPE_CHECKING
 from app.models.base import Base
 
 if TYPE_CHECKING:
-    from app.models.users import User
+    from app.models.users import UserModel
 
 
 class TaskStatus(str, Enum):
@@ -17,7 +17,7 @@ class TaskStatus(str, Enum):
     CANCELED = "Canceled"
 
 
-class Task(Base):
+class TaskModel(Base):
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -25,13 +25,13 @@ class Task(Base):
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     responsible_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    observers: Mapped[list["User"]] = relationship(
+    observers: Mapped[list["UserModel"]] = relationship(
         "User",
         secondary="task_observers",
         back_populates="observed_tasks",
         lazy="joined",
     )
-    executors: Mapped[list["User"]] = relationship(
+    executors: Mapped[list["UserModel"]] = relationship(
         "User",
         secondary="task_executors",
         back_populates="assigned_tasks",
