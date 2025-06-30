@@ -5,11 +5,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 
 if TYPE_CHECKING:
-    from app.models.departments import Department
-    from app.models.users import User
+    from app.models.departments import DepartmentModel
+    from app.models.users import UserModel
 
 
-class RoleAssignment(Base):
+class RoleAssignmentModel(Base):
     __tablename__ = "role_assignments"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -19,7 +19,7 @@ class RoleAssignment(Base):
     )
     role_name: Mapped[str] = mapped_column(nullable=False)
 
-    user: Mapped["User"] = relationship("User", back_populates="role_assignments")
-    department: Mapped["Department"] = relationship(
+    user: Mapped["UserModel"] = relationship("User", back_populates="role_assignments")
+    department: Mapped["DepartmentModel"] = relationship(
         "Department", back_populates="role_assignments"
     )
