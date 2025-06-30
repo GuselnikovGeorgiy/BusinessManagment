@@ -9,13 +9,13 @@ from alembic import context
 
 from app.config import settings
 from app.models.base import Base
-from app.models.companies import Company
-from app.models.departments import Department
-from app.models.invites import Invite
-from app.models.positions import Position
-from app.models.roles import RoleAssignment
-from app.models.tasks import Task
-from app.models.users import User
+from app.models.companies import CompanyModel
+from app.models.departments import DepartmentModel
+from app.models.invites import InviteModel
+from app.models.positions import PositionModel
+from app.models.roles import RoleAssignmentModel
+from app.models.tasks import TaskModel
+from app.models.users import UserModel
 
 sys.path.insert(0, dirname(dirname(dirname(abspath(__file__)))))
 
