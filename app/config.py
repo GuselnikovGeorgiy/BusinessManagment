@@ -9,10 +9,10 @@ load_dotenv()
 
 class AuthJWT:
     private_key_path: Path = Path(
-        Path(__file__).parent / "utils" / "certs" / "private.pem"
+        Path(__file__).parent / "utils" / "certs" / "jwt-private.pem"
     )
     public_key_path: Path = Path(
-        Path(__file__).parent / "utils" / "certs" / "public.pem"
+        Path(__file__).parent / "utils" / "certs" / "jwt-public.pem"
     )
     algorithm: str = "RS256"
     access_token_expire_minutes: int = 600
@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     DB_PORT: int
     DB_USER: str
     DB_PASS: str
+
+    REDIS_HOST: str
+    REDIS_PORT: int
 
     @computed_field
     @property
