@@ -7,76 +7,71 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt
 
-from app.schemas.auth import UserToken
 from app.config import settings
+from app.schemas.auth import UserToken
 
-http_bearer = HTTPBearer()
+
+# Кэш ключей — читаем один раз при импорте
+_PRIVATE_KEY: str = settings.auth_jwt.private_key_path.read_text()
+_PUBLIC_KEY: str = settings.auth_jwt.public_key_path.read_text()
+_ALGORITHM: str = settings.auth_jwt.algorithm
+_ACCESS_EXPIRE_MINUTES: int = settings.auth_jwt.access_token_expire_minutes
 
 
 def encode_jwt(
     payload: dict,
-    private_key: str = settings.auth_jwt.private_key_path.read_text(),
-    algorithm: str = settings.auth_jwt.algorithm,
-    expire_minutes: int = settings.auth_jwt.access_token_expire_minutes,
+    *,
+    private_key: str = _PRIVATE_KEY,
+    algorithm: str = _ALGORITHM,
+    expire_minutes: int = _ACCESS_EXPIRE_MINUTES,
     expire_timedelta: Union[timedelta, None] = None,
 ) -> str:
+    """
+    Создаёт JWT‑токен. Обязательно наличие поля `sub` (ID пользователя).
+    """
+    if "sub" not in payload:
+        raise ValueError("payload must contain 'sub' field")
+
     to_encode = payload.copy()
+    to_encode["sub"] = str(to_encode["sub"])  # приводим к строке для совместимости
+
     now = datetime.now(timezone.utc)
-    if expire_timedelta:
-        expire = now + expire_timedelta
-    else:
-        expire = now + timedelta(minutes=expire_minutes)
+    expire = now + (expire_timedelta or timedelta(minutes=expire_minutes))
 
-    if "sub" in to_encode:
-        to_encode["sub"] = str(to_encode["sub"])
+    to_encode.update(exp=expire, iat=now)
 
-    to_encode.update(
-        exp=expire,
-        iat=now,
-    )
-    encoded = jwt.encode(
-        to_encode,
-        private_key,
-        algorithm=algorithm,
-    )
-    return encoded
+    return jwt.encode(to_encode, private_key, algorithm=algorithm)
 
 
 def decode_jwt(
     token: Union[str, bytes],
-    public_key: str = settings.auth_jwt.public_key_path.read_text(),
-    algorithm: str = settings.auth_jwt.algorithm,
+    *,
+    public_key: str = _PUBLIC_KEY,
+    algorithm: str = _ALGORITHM,
 ) -> dict:
-    payload = jwt.decode(
-        token,
-        public_key,
-        algorithms=[algorithm],
-        options={"verify_sub": False},
-    )
+    """
+    Декодирует токен и верифицирует подпись и срок действия.
+    """
+    try:
+        payload = jwt.decode(token, public_key, algorithms=[algorithm])
+    except jwt.JWTError as exc:
+        raise HTTPException(status_code=401, detail="Invalid token") from exc
 
     if "sub" not in payload:
-        raise ValueError("Invalid token: 'sub' claim is missing.")
-    if not isinstance(payload["sub"], str):
-        payload["sub"] = str(payload["sub"])
+        raise HTTPException(status_code=401, detail="Invalid token: missing 'sub' claim")
 
-    decoded = jwt.decode(
-        token,
-        public_key,
-        algorithms=[algorithm],
-    )
-    return decoded
+    # гарантируем строковый тип sub
+    payload["sub"] = str(payload["sub"])
+    return payload
 
 
-def hash_password(password: str) -> str:
-    salt = bcrypt.gensalt()
-    pwd_bytes: bytes = password.encode("utf-8")
-    hashed_password = bcrypt.hashpw(pwd_bytes, salt)
-    return hashed_password.decode("utf-8")
+def hash_password(password: str, rounds: int = 12) -> str:
+    salt = bcrypt.gensalt(rounds=rounds)
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 
 def validate_password(password: str, hashed_password: str) -> bool:
-    hashed_password_bytes = hashed_password.encode("utf-8")
-    return bcrypt.checkpw(password.encode("utf-8"), hashed_password_bytes)
+    return bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 def generate_invite_token() -> str:
@@ -84,19 +79,19 @@ def generate_invite_token() -> str:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
 ) -> UserToken:
-    token = credentials.credentials
-    payload: dict = decode_jwt(token=token)
-    user_id: int = payload.get("sub")
-    company_id: int = payload.get("company_id")
-    is_admin: bool = payload.get("is_admin")
-    is_active: bool = payload.get("is_active")
+    """
+    Декодирует токен из заголовка Authorization и возвращает модель UserToken.
+    """
+    payload = decode_jwt(credentials.credentials)
 
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
+    is_active: bool = payload.get("is_active", True)
     if not is_active:
         raise HTTPException(status_code=403, detail="Account is inactive")
 
-    return UserToken(user_id=user_id, company_id=company_id, is_admin=is_admin)
+    return UserToken(
+        user_id=int(payload["sub"]),
+        company_id=payload.get("company_id"),
+        is_admin=payload.get("is_admin", False),
+    )
