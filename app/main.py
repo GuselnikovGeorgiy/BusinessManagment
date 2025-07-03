@@ -1,10 +1,12 @@
 import uvicorn
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi_cache.backends.redis import RedisBackend
+from fastapi.middleware import Middleware
 from fastapi_cache import FastAPICache
-from redis import asyncio as aioredis
+from fastapi_cache.backends.redis import RedisBackend
+from redis.asyncio import Redis
 
 from app.auth.middleware import auth_middleware
 from app.config import settings
@@ -19,49 +21,61 @@ from app.routers.v1.roles import roles_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    redis = aioredis.from_url(
-        f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-        encoding="utf8",
+    """Инициализация и корректное закрытие подключения к Redis."""
+    redis: Redis = Redis(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT,
+        encoding="utf-8",
         decode_responses=True,
     )
-    FastAPICache.init(RedisBackend(redis), prefix="cache")
-    yield
+    try:
+        FastAPICache.init(
+            RedisBackend(redis),
+            prefix=settings.CACHE_PREFIX,
+        )
+        yield
+    finally:
+        await redis.close()
 
 
-app = FastAPI(
-    title="Business Managment System",
-    version="0.1.0",
-    lifespan=lifespan,
-)
-
-
-app.include_router(tasks_router)
-app.include_router(auth_router)
-app.include_router(invite_router)
-app.include_router(user_router)
-app.include_router(department_router)
-app.include_router(positions_router)
-app.include_router(roles_router)
-
-app.middleware("http")(auth_middleware)
-
-origins = [
-    "http://localhost:3000"
+middleware = [
+    Middleware(
+        CORSMiddleware,
+        allow_origins=settings.ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "OPTIONS", "DELETE", "PATCH", "PUT"],
+        allow_headers=[
+            "Content-Type",
+            "Set-Cookie",
+            "Access-Control-Allow-Headers",
+            "Access-Control-Allow-Origin",
+            "Access-Authorization",
+        ],
+    ),
+    Middleware(auth_middleware),  # убедитесь, что auth_middleware реализует ASGI‑сигнатуру
 ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS", "DELETE", "PATCH", "PUT"],
-    allow_headers=[
-        "Content-Type",
-        "Set-Cookie",
-        "Access-Control-Allow-Headers",
-        "Access-Control-Allow-Origin",
-        "Access-Authorization",
-    ],
+app = FastAPI(
+    title="Business Management System",
+    version="0.1.0",
+    lifespan=lifespan,
+    middleware=middleware,
 )
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+API_PREFIX = "/v1"
+
+# роутеры подключаются под общим префиксом версии
+app.include_router(tasks_router, prefix=API_PREFIX)
+app.include_router(auth_router, prefix=API_PREFIX)
+app.include_router(invite_router, prefix=API_PREFIX)
+app.include_router(user_router, prefix=API_PREFIX)
+app.include_router(department_router, prefix=API_PREFIX)
+app.include_router(positions_router, prefix=API_PREFIX)
+app.include_router(roles_router, prefix=API_PREFIX)
+
+# ---- Локальный запуск (только для разработки) ----
+# В продакшене приложение запускается командой:
+#   uvicorn app.main:app --host 0.0.0.0 --port 8000
+# --------------------------------------------------
+if __name__ == "__main__":  # pragma: no cover
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
