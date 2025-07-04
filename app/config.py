@@ -37,6 +37,8 @@ class Settings(BaseSettings):
 
     CACHE_PREFIX: str = "cache"
 
+    DEFAULT_COMPANY_NAME: str = "Default Company"
+
     ALLOWED_ORIGINS: List[str] = Field(
         default=["http://localhost:3000"],
         description="Список разрешённых источников CORS"
